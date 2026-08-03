@@ -1,0 +1,15 @@
+{
+  "name": "Galapagos Bridge",
+  "version": "0.1.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        { "path": "builds/bootloader.bin", "offset": 0x1000 },
+        { "path": "builds/partition-table.bin", "offset": 0x8000 },
+        { "path": "builds/galapagos-bridge.bin", "offset": 0x10000 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# Galapagos Bridge — ESP-IDF defaults.
+#
+# Everything here is a *build* default. Runtime values the pilot might
+# actually want to touch (SSID, password, baud) live in NVS and override
+# these — see bridge/config.cpp.
+
+# 2 MHz ticks: our shortest timeout (radio silence, 5 s) is a multiple of
+# 1000 ticks, so nothing here trades resolution for power. The default
+# 100 Hz would work too; 1000 keeps vTaskDelay math exact.
+CONFIG_FREERTOS_HZ=1000
+
+# The bridge is a relay; it does not need the full IP stack audit surface.
+# Keep the useful bits, drop mDNS/DHCP-client probing we never use.
+CONFIG_LWIP_DHCP_DOES_ARP_CHECK=n
+CONFIG_LWIP_DHCP_RESTORE_LAST_IP=n
+
+# SoftAP is the whole job. STA (joining someone else's network) is dead
+# weight and a real attack surface in the field.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+
+# Small system: no need for the app-trace/profiling plugin subsystems.
+CONFIG_APPTRACE_DEST_NONE=y
