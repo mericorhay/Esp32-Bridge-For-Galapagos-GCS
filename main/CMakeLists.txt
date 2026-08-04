@@ -3,6 +3,7 @@ idf_component_register(
         "app_main.cpp"
         "bridge/app_state.cpp"
         "bridge/config.cpp"
+        "bridge/demo.cpp"
         "bridge/link_watch.cpp"
         "bridge/state_machine.cpp"
         "bridge/uart_radio.cpp"

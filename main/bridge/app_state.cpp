@@ -1,6 +1,7 @@
 #include "bridge/app_state.hpp"
 
 #include <cstdint>
+#include <span>
 
 #include "driver/gpio.h"
 #include "esp_log.h"
@@ -8,6 +9,7 @@
 #include "freertos/task.h"
 
 #include "bridge/config.hpp"
+#include "bridge/demo.hpp"
 #include "bridge/uart_radio.hpp"
 #include "bridge/udp_relay.hpp"
 
@@ -28,6 +30,19 @@ static UartRadio s_uart;
 
 bool start_pipeline(uint32_t baud) {
     if (!s_uart.init(baud, kUartTxPin, kUartRxPin)) return false;
+    if constexpr (kDemoMode) {
+        // Bench mode: the demo task owns its own UDP socket and never
+        // touches the relay rings. Bind g_relay anyway would double-bind
+        // port 14550 — skip it so there's exactly one socket on the port.
+        constexpr UBaseType_t kRelayPriority = 5;
+        constexpr UBaseType_t kWatchPriority = 3;
+        constexpr UBaseType_t kLedPriority = 1;
+        xTaskCreate(demo_task, "demo", 4096, nullptr, kRelayPriority, nullptr);
+        xTaskCreate(link_watch_task, "watch", 2048, nullptr, kWatchPriority, nullptr);
+        xTaskCreate(led_task, "led", 2048, nullptr, kLedPriority, nullptr);
+        return true;
+    }
+
     if (!g_relay.init(kUdpPort)) return false;
 
     // Priorities: relay tasks share a level and cooperate via notifications
@@ -89,7 +104,8 @@ void udp_tx_task(void*) {
 void udp_rx_task(void*) {
     uint8_t buf[512];
     for (;;) {
-        size_t n = g_relay.recv(buf, 50);
+        uint32_t peer = 0;
+        size_t n = g_relay.recv(std::span<uint8_t>(buf, sizeof buf), 50, &peer);
         if (n == 0) continue;
         g_tx_ring.push(buf, n);
         xTaskNotifyGive(s_uart_tx_task);

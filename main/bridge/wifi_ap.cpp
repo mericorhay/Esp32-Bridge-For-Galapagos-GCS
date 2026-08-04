@@ -9,9 +9,24 @@
 #include "esp_wifi_types_generic.h"
 #include "nvs_flash.h"
 
+#include "bridge/demo.hpp"
+
 static const char* TAG = "wifi";
 
 namespace bridge {
+
+// Learn the GCS's address the moment it joins the AP, so the demo can
+// unicast telemetry to it (iOS is unreliable about broadcast). The event
+// fires once per STA when DHCP hands out its IP.
+static void ap_sta_ipassigned_handler(void*, esp_event_base_t, int32_t,
+                                      void* event_data) {
+    auto* data = static_cast<ip_event_ap_staipassigned_t*>(event_data);
+    if (data == nullptr) return;
+    uint32_t ip = data->ip.addr;
+    ESP_LOGI(TAG, "STA assigned IP: %u.%u.%u.%u",
+             ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
+    demo_set_peer(ip);
+}
 
 bool wifi_ap_start(const BridgeConfig& cfg) noexcept {
     // WiFi needs NVS for its own persistence (stored MAC, calibration).
@@ -32,6 +47,12 @@ bool wifi_ap_start(const BridgeConfig& cfg) noexcept {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_ap();
+
+    // Register before esp_wifi_start so we never miss a client. The
+    // "STA assigned IP" event lives on IP_EVENT, not WIFI_EVENT.
+    ESP_ERROR_CHECK(esp_event_handler_register(
+        IP_EVENT, IP_EVENT_AP_STAIPASSIGNED, ap_sta_ipassigned_handler,
+        nullptr));
 
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&init));

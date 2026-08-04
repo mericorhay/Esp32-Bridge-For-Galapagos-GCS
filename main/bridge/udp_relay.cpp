@@ -55,17 +55,44 @@ bool UdpRelay::send_broadcast(std::span<const uint8_t> bytes) noexcept {
     return true;
 }
 
-size_t UdpRelay::recv(std::span<uint8_t> out, uint32_t timeout_ms) noexcept {
-    fd_set rfds;
-    FD_ZERO(&rfds);
-    FD_SET(fd_, &rfds);
+bool UdpRelay::send_unicast_to(uint32_t ipv4, uint16_t port,
+                               std::span<const uint8_t> bytes) noexcept {
+    sockaddr_in dst{};
+    dst.sin_family = AF_INET;
+    dst.sin_port = htons(port);
+    // ipv4 is already in network byte order (as given by ip_event_ap_staipassigned_t
+    // or the demo's self-probe constant) — assign as-is, no htonl.
+    dst.sin_addr.s_addr = ipv4;
+    ssize_t n = sendto(fd_, bytes.data(), bytes.size(), 0,
+                       reinterpret_cast<sockaddr*>(&dst), sizeof(dst));
+    if (n < 0) {
+        ESP_LOGW(TAG, "sendto unicast: %s", strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+size_t UdpRelay::recv(std::span<uint8_t> out, uint32_t timeout_ms,
+                      uint32_t* peer_ip) noexcept {
+    // Blocking socket with SO_RCVTIMEO: recvfrom returns after up to
+    // timeout_ms with either a datagram or -1/EAGAIN. This is the most
+    // reliable lwIP pattern on ESP-IDF (select() over a broadcast socket is
+    // fragile, and O_NONBLOCK polling can miss the WiFi task's delivery).
     timeval tv{};
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
-    int ready = select(fd_ + 1, &rfds, nullptr, nullptr, &tv);
-    if (ready <= 0) return 0;
-    ssize_t n = recvfrom(fd_, out.data(), out.size(), 0, nullptr, nullptr);
-    return n > 0 ? static_cast<size_t>(n) : 0;
+    setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    sockaddr_in from{};
+    socklen_t fromlen = sizeof(from);
+    ssize_t n = recvfrom(fd_, out.data(), out.size(), 0,
+                         reinterpret_cast<sockaddr*>(&from), &fromlen);
+    if (n > 0) {
+        if (peer_ip != nullptr) *peer_ip = from.sin_addr.s_addr;
+        return static_cast<size_t>(n);
+    }
+    // -1 with EAGAIN/EWOULDBLOCK is the normal "timeout, no data" case.
+    return 0;
 }
 
 }  // namespace bridge
