@@ -21,7 +21,7 @@ namespace bridge {
 // True: run the demo instead of relying on the radio. False: pure relay.
 // Hard-coded at build time so there is no runtime path that could silently
 // feed synthetic data into a real flight.
-constexpr bool kDemoMode = false;
+constexpr bool kDemoMode = true;
 
 // Broadcast one MAVLink v2 frame on the demo socket.
 void demo_send_frame(UdpRelay& relay, uint32_t msgid, std::span<const uint8_t> payload);
