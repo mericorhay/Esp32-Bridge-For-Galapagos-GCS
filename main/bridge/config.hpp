@@ -4,9 +4,8 @@
 // pilot actually changes (WiFi name/password, radio baud) are read from
 // NVS at boot and override them — see config.cpp.
 //
-// Pins default to the classic ESP32 DevKitC layout (GPIO16/17 = UART2)
-// because that's the board 95% of pilots own. Changing pins means
-// reflashing; changing baud/SSID/password does not.
+// Pins are chip-specific: ESP32/S3 use UART2 on GPIO16/17, ESP32-C3
+// uses UART1 on GPIO6/7 (C3 has no UART2). LED pin also varies.
 
 #include <cstdint>
 
@@ -14,9 +13,21 @@ namespace bridge {
 
 constexpr uint32_t kUdpPort = 14550;   // Galapagos listens here by default
 constexpr uint32_t kDefaultBaud = 57600;  // SiK radio default
-constexpr uint8_t kUartTxPin = 17;        // GPIO17 -> radio RX
-constexpr uint8_t kUartRxPin = 16;        // GPIO16 <- radio TX
-constexpr uint8_t kLedPin = 2;            // DevKitC onboard blue LED
+
+// --- Chip-specific UART and pin config ---
+#if defined(TARGET_ESP32C3)
+  // ESP32-C3: only UART0 + UART1. Use UART1 for the radio.
+  // GPIO6 (TX) and GPIO7 (RX) are safe general-purpose pins with no
+  // boot-mode or flash-mux conflicts.
+  constexpr uint8_t kUartTxPin = 6;
+  constexpr uint8_t kUartRxPin = 7;
+  constexpr uint8_t kLedPin = 12;  // GPIO12 — safe on C3 DevKit
+#else
+  // ESP32 / ESP32-S3: UART2 on GPIO16/17 (classic DevKitC layout).
+  constexpr uint8_t kUartTxPin = 17;  // GPIO17 -> radio RX
+  constexpr uint8_t kUartRxPin = 16;  // GPIO16 <- radio TX
+  constexpr uint8_t kLedPin = 2;      // onboard blue LED
+#endif
 
 struct BridgeConfig {
     char ssid[33];

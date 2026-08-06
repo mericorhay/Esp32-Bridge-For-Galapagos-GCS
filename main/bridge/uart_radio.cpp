@@ -9,10 +9,14 @@ static const char* TAG = "uart";
 
 namespace bridge {
 
-// UART2 is unused on every common ESP32 devkit and has its own GPIO
-// routing, so it's the natural home for the radio. UART0 is the debug
-// console; stealing it would make `idf.py monitor` garbage.
+// ESP32-C3 has only UART0 + UART1 (no UART2). ESP32/S3 use UART2
+// to keep the debug console (UART0) free.
+#if defined(TARGET_ESP32C3)
+static constexpr uart_port_t kUartNum = UART_NUM_1;
+#else
 static constexpr uart_port_t kUartNum = UART_NUM_2;
+#endif
+
 static constexpr size_t kRxBufBytes = 2048;   // radio-to-ESP32 (downlink)
 static constexpr size_t kTxBufBytes = 2048;   // ESP32-to-radio (uplink)
 static constexpr size_t kEventQueueDepth = 16;
@@ -45,8 +49,13 @@ bool UartRadio::init(uint32_t baud, uint8_t tx_pin, uint8_t rx_pin) noexcept {
         ESP_LOGE(TAG, "uart pin config failed");
         return false;
     }
+#if defined(TARGET_ESP32C3)
+    ESP_LOGI(TAG, "UART1 up at %lu baud (tx=%u rx=%u)", (unsigned long)baud,
+             tx_pin, rx_pin);
+#else
     ESP_LOGI(TAG, "UART2 up at %lu baud (tx=%u rx=%u)", (unsigned long)baud,
              tx_pin, rx_pin);
+#endif
     return true;
 }
 

@@ -1,22 +1,30 @@
 {
   "name": "Galapagos Bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "new_install_prompt_erase": true,
   "builds": [
     {
-      "chipFamily": "ESP32-S3",
+      "chipFamily": "ESP32",
       "parts": [
-        { "path": "builds/bootloader.bin", "offset": 0 },
-        { "path": "builds/partition-table.bin", "offset": 32768 },
-        { "path": "builds/galapagos-bridge.bin", "offset": 65536 }
+        { "path": "builds/esp32/bootloader.bin", "offset": 4096 },
+        { "path": "builds/esp32/partitions.bin", "offset": 32768 },
+        { "path": "builds/esp32/galapagos-bridge.bin", "offset": 65536 }
       ]
     },
     {
-      "chipFamily": "ESP32",
+      "chipFamily": "ESP32-S3",
       "parts": [
-        { "path": "builds/bootloader.bin", "offset": 4096 },
-        { "path": "builds/partition-table.bin", "offset": 32768 },
-        { "path": "builds/galapagos-bridge.bin", "offset": 65536 }
+        { "path": "builds/esp32s3/bootloader.bin", "offset": 0 },
+        { "path": "builds/esp32s3/partitions.bin", "offset": 32768 },
+        { "path": "builds/esp32s3/galapagos-bridge.bin", "offset": 65536 }
+      ]
+    },
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "builds/esp32c3/bootloader.bin", "offset": 0 },
+        { "path": "builds/esp32c3/partitions.bin", "offset": 32768 },
+        { "path": "builds/esp32c3/galapagos-bridge.bin", "offset": 65536 }
       ]
     }
   ]

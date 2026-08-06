@@ -25,7 +25,7 @@ power bank runs both the radio and the bridge.
 
 | Part | Notes |
 |---|---|
-| ESP32 DevKitC (or any ESP32/ESP32-S3/C3 board) | classic DevKitC pinout assumed |
+| ESP32, ESP32-S3, or ESP32-C3 board | DevKitC pinout assumed |
 | Telemetry radio **ground** module | SiK (57600) or LoRa (9600) |
 | USB power bank | ≥ 1 A; both radios and the bridge draw from it |
 
@@ -33,12 +33,12 @@ power bank runs both the radio and the bridge.
 
 Four wires, no soldering (jumper wires are fine):
 
-| Radio pin | ESP32 pin |
-|---|---|
-| GND | GND |
-| VCC | 5V / VIN |
-| TX  | GPIO16 (UART2 RX) |
-| RX  | GPIO17 (UART2 TX) |
+| Radio pin | ESP32 / ESP32-S3 | ESP32-C3 |
+|---|---|---|
+| GND | GND | GND |
+| VCC | 5V / VIN | 5V / VIN |
+| TX  | GPIO16 (UART2 RX) | GPIO7 (UART1 RX) |
+| RX  | GPIO17 (UART2 TX) | GPIO6 (UART1 TX) |
 
 > **5V radios.** Modern radios (3DR SiK V2, Holybro SiK V3, most LoRa
 > modules) run 3.3 V logic and connect directly. If your radio's pins are

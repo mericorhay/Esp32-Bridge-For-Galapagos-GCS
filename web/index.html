@@ -16,7 +16,22 @@
     p  { font-size: 14px; line-height: 1.6; color: #a9aec2; }
     ol { font-size: 14px; line-height: 1.7; color: #c6c9d8; padding-left: 20px; }
     code { background: #1d2340; padding: 1px 6px; border-radius: 4px; }
+    .supported { margin: 16px 0; padding: 12px 16px; border-radius: 10px;
+                 background: #1a1f35; border: 1px solid #2a3050; }
+    .supported h2 { font-size: 13px; margin: 0 0 8px; color: #8890b0;
+                     text-transform: uppercase; letter-spacing: 0.5px; }
+    .chip { display: inline-block; padding: 3px 10px; margin: 2px 4px 2px 0;
+            border-radius: 6px; font-size: 12px; font-weight: 600;
+            background: #252b48; color: #c6c9d8; }
+    .chip.c3 { background: #1a3020; color: #7dcea0; }
+    .chip.s3 { background: #2a2040; color: #b39ddb; }
+    .chip.orig { background: #2a2520; color: #ffcc80; }
     .foot { margin-top: 20px; font-size: 12px; color: #6b7192; }
+    .error { margin-top: 12px; padding: 10px 14px; border-radius: 8px;
+             background: #2a1520; border: 1px solid #4a2030; color: #ef9a9a;
+             font-size: 13px; display: none; }
+    .error.show { display: block; }
+    esp-web-install-button { margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -24,6 +39,14 @@
     <h1>Galapagos Bridge</h1>
     <p>Turn your ESP32 into a WiFi bridge for your telemetry radio.
        No Arduino IDE, no terminal, no drivers.</p>
+
+    <div class="supported">
+      <h2>Supported boards</h2>
+      <span class="chip orig">ESP32</span>
+      <span class="chip s3">ESP32-S3</span>
+      <span class="chip c3">ESP32-C3</span>
+    </div>
+
     <ol>
       <li>Plug the ESP32 into your computer with a USB cable.</li>
       <li>Click the button below. In the popup pick <strong>USB</strong>,
@@ -32,10 +55,25 @@
           power bank, and join the <code>Galapagos-Bridge</code> WiFi.</li>
       <li>Open Galapagos and tap Connect. Done.</li>
     </ol>
+
     <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
+
+    <div id="error" class="error"></div>
+
     <p class="foot">Runs locally in your browser via Web Serial — the page
        never uploads anything anywhere but your ESP32.</p>
   </div>
+
   <script src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+  <script>
+    const errorEl = document.getElementById('error');
+    document.querySelector('esp-web-install-button').addEventListener('error', e => {
+      errorEl.textContent = e.detail.message || 'Something went wrong. Check the console.';
+      errorEl.classList.add('show');
+    });
+    document.querySelector('esp-web-install-button').addEventListener('install', () => {
+      errorEl.classList.remove('show');
+    });
+  </script>
 </body>
 </html>
