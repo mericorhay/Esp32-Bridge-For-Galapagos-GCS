@@ -1,7 +1,55 @@
+# Privacy Policy
+
+**Effective date:** August 2026
+
+Galapagos GCS ("the app") is built by a small independent developer. This policy explains what the app accesses and why.
+
+## Data the app collects
+
+**None.** The app does not collect, store, or transmit any personal data. There are no accounts, no analytics, no tracking, and no cloud services.
+
+## Data the app uses locally
+
+| Data | Why |
+|------|-----|
+| Vehicle telemetry (GPS, battery, attitude) | Displayed on screen during flight; never leaves the device |
+| Connection settings (IP, port, baud rate) | Saved locally so the app remembers your drone |
+| Mission plans (waypoints, geofences) | Stored on device for flight planning |
+| Offline map tiles | Downloaded to device for areas without internet |
+| App preferences (theme, sidebar shortcuts) | Saved locally via UserDefaults / SharedPreferences |
+
+None of this data is uploaded, shared, or sold. It stays on your device.
+
+## Third-party services
+
+| Service | What it does | Data sent |
+|---------|-------------|-----------|
+| CARTO map tiles | Displays the basemap | Standard HTTP tile requests (zoom/coordinates only) |
+| OpenFreeMap | 3D vector map tiles | Standard HTTP tile requests |
+| adsb.lol / OpenSky Network | Shows nearby aircraft | Device GPS coordinates (anonymous, to find nearby traffic) |
+
+These services receive no personal information. Tile requests contain only map coordinates. ADS-B requests contain only your approximate location to find nearby aircraft.
+
+## In-App Purchases
+
+Payments are processed entirely by Apple through StoreKit. The app never sees your payment information, credit card, or Apple ID. Purchase status is stored locally on device only.
+
+## Children's privacy
+
+The app does not knowingly collect data from children under 13.
+
+## Changes to this policy
+
+If this policy changes, the update will be posted on this page with a new effective date.
+
+## Contact
+
+For privacy questions: mericorhayy@gmail.com
+
 # Galapagos Bridge
 
 A zero-config WiFi bridge that turns your ESP32 into the ground link for
-your telemetry radio, feeding [Galapagos GCS](https://github.com/mericorhay/Galapagos-GCS) over UDP.
+your telemetry radio, feeding Galapagos GCS over UDP.
 
 ```
 [Flight controller] --UART-- [SiK/LoRa air] ~~~~~ [SiK/LoRa ground] --UART-- [ESP32] ~~WiFi~~ [Galapagos app]
