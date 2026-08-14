@@ -13,7 +13,7 @@
 # only writer of web/builds, and it produces all three chip families.
 #
 # Usage: tools/build_web.sh    (run from the repo root)
-# Serve web/ (e.g. `npx serve web`) and open index.html in Chrome/Edge/Firefox.
+# Serve web/ (e.g. `npx serve web`) and open index.html in Chrome or Edge.
 
 set -euo pipefail
 
@@ -66,5 +66,5 @@ for chip in esp32 esp32s3 esp32c3; do
 done
 
 echo "Staged all three chip families under web/builds/. Serve web/ and open"
-echo "it in Chrome, Edge, or Firefox:"
+echo "it in Chrome or Edge:"
 echo "  (cd web && npx serve .)"

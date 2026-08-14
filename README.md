@@ -101,9 +101,9 @@ or use the hosted page. Plug in the ESP32, click the button, done. No
 Arduino IDE, no drivers, no toolchain.
 
 > **Which browser?** The web flasher uses the Web Serial API, so it works
-> in **Chrome, Edge, or Firefox on your computer** (served over HTTPS or
-> localhost). **iOS Safari cannot flash** — Web Serial isn't available on
-> iOS. On an iPhone/iPad, flash the bridge from a laptop first, then join
+> in **Chrome or Edge on your computer** (served over HTTPS or localhost).
+> **Firefox does not support Web Serial**, and iOS Safari cannot flash
+> either. On an iPhone/iPad, flash the bridge from a laptop first, then join
 > the bridge's WiFi from the phone.
 
 **Or ESP-IDF:**
@@ -115,6 +115,15 @@ idf.py flash monitor
 After boot the bridge advertises WiFi **`Galapagos-Bridge`**
 (password `galapagos`) on 192.168.4.1. Join it from your phone, open
 Galapagos, leave host `0.0.0.0` / port `14550`, tap Connect.
+
+> **Host semantics in Galapagos.** `0.0.0.0:14550` means the app LISTENS
+> (UDP receive) for the bridge's broadcast/telemetry — the zero-config
+> story, and the one you want for a phone. `192.168.4.1` would mean the
+> app actively SENDS to the bridge (UDP transmit). You want the former:
+> the bridge pushes telemetry to `0.0.0.0:14550`; you only need a concrete
+> bridge IP if you switch Galapagos to `udpout://192.168.4.1:14550` mode
+> (e.g. for desktop use), and even then the app must be told to actively
+> send rather than listen.
 
 ## Configuration
 

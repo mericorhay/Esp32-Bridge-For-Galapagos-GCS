@@ -74,6 +74,21 @@
     document.querySelector('esp-web-install-button').addEventListener('install', () => {
       errorEl.classList.remove('show');
     });
+
+    // Web Serial is Chrome/Edge only — Firefox and iOS Safari cannot flash.
+    if (!('serial' in navigator)) {
+      const banner = document.createElement('div');
+      banner.style.cssText =
+        'margin:16px 0;padding:12px 16px;border-radius:10px;' +
+        'background:#3a1a1a;border:1px solid #5a2020;color:#ff9d9d;font-size:13px;';
+      banner.textContent =
+        'This flasher needs the Web Serial API, which your browser does not ' +
+        'support. Use Chrome or Edge on a computer (iPhone/iPad Safari and ' +
+        'Firefox cannot flash).';
+      document.querySelector('.card').insertBefore(
+        banner, document.querySelector('.card > *')
+      );
+    }
   </script>
 </body>
 </html>
