@@ -1,200 +1,701 @@
+# Galapagos Bridge
+
+Turn an ESP32 into a wireless MAVLink bridge for Galapagos GCS.
+
+The bridge lets you use a telemetry radio with an iPhone, iPad, or any other device that cannot directly connect to the radio by USB.
+
+You do not need to understand MAVLink, ESP32 programming, Arduino, or networking to use it.
+
+---
+
 # Privacy Policy
 
-**Effective date:** August 2026
+**Effective date: August 2026**
 
-Galapagos GCS ("the app") is built by a small independent developer. This policy explains what the app accesses and why.
+Galapagos GCS ("the app") is built by a small independent developer. This policy explains what information the app accesses and how it is used.
 
-## Data the app collects
+## Data We Collect
 
-**None.** The app does not collect, store, or transmit any personal data. There are no accounts, no analytics, no tracking, and no cloud services.
+**None.**
 
-## Data the app uses locally
+Galapagos GCS does not collect, store, or transmit personal data.
 
-| Data | Why |
-|------|-----|
-| Vehicle telemetry (GPS, battery, attitude) | Displayed on screen during flight; never leaves the device |
-| Connection settings (IP, port, baud rate) | Saved locally so the app remembers your drone |
-| Mission plans (waypoints, geofences) | Stored on device for flight planning |
-| Offline map tiles | Downloaded to device for areas without internet |
-| App preferences (theme, sidebar shortcuts) | Saved locally via UserDefaults / SharedPreferences |
+The app has:
 
-None of this data is uploaded, shared, or sold. It stays on your device.
+- No user accounts
+- No analytics
+- No advertising trackers
+- No tracking
+- No cloud account
+- No personal-data collection
 
-## Third-party services
+## Data Used on Your Device
 
-| Service | What it does | Data sent |
-|---------|-------------|-----------|
-| CARTO map tiles | Displays the basemap | Standard HTTP tile requests (zoom/coordinates only) |
-| OpenFreeMap | 3D vector map tiles | Standard HTTP tile requests |
-| adsb.lol / OpenSky Network | Shows nearby aircraft | Device GPS coordinates (anonymous, to find nearby traffic) |
+The following information may be stored or processed locally on your device:
 
-These services receive no personal information. Tile requests contain only map coordinates. ADS-B requests contain only your approximate location to find nearby aircraft.
+| Data | Why it is used |
+|---|---|
+| Vehicle telemetry | Displays GPS, battery, attitude, and other flight information |
+| Connection settings | Remembers IP addresses, ports, and serial settings |
+| Mission plans | Stores waypoints, geofences, and flight plans |
+| Offline map data | Allows maps to work without an internet connection |
+| App preferences | Saves settings such as theme and interface preferences |
+| Purchase status | Allows the app to remember your Pro purchase |
+
+This information is not uploaded to Galapagos servers and is not sold or shared by Galapagos.
+
+## Third-Party Services
+
+Galapagos may communicate with the following third-party services when you use related features:
+
+| Service | Purpose | Information sent |
+|---|---|---|
+| CARTO | Map tiles | Map coordinates required to display the map |
+| OpenFreeMap | 3D map data | Map coordinates required to display the map |
+| adsb.lol / OpenSky Network | Nearby aircraft information | Your approximate location may be sent to find nearby aircraft |
+
+These services are used only when their corresponding features are active.
+
+Galapagos does not send your personal identity, account information, or flight logs to these services.
 
 ## In-App Purchases
 
-Payments are processed entirely by Apple through StoreKit. The app never sees your payment information, credit card, or Apple ID. Purchase status is stored locally on device only.
+Payments are processed by Apple through the App Store and StoreKit.
 
-## Children's privacy
+Galapagos does not receive or store:
 
-The app does not knowingly collect data from children under 13.
+- Credit card information
+- Payment information
+- Apple ID passwords
+- Your full Apple payment details
 
-## Changes to this policy
+Purchase status is used locally by the app to provide access to purchased features.
 
-If this policy changes, the update will be posted on this page with a new effective date.
+## Children's Privacy
+
+Galapagos GCS does not knowingly collect personal information from children under 13.
+
+## Changes to This Policy
+
+If this privacy policy changes, the updated version will be published with a new effective date.
 
 ## Contact
 
-For privacy questions: mericorhayy@gmail.com
+For privacy questions:
 
-# Galapagos Bridge
+**mericorhayy@gmail.com**
 
-A zero-config WiFi bridge that turns your ESP32 into the ground link for
-your telemetry radio, feeding Galapagos GCS over UDP.
+---
 
-```
-[Flight controller] --UART-- [SiK/LoRa air] ~~~~~ [SiK/LoRa ground] --UART-- [ESP32] ~~WiFi~~ [Galapagos app]
-```
+# What Is Galapagos Bridge?
 
-The bridge relays **raw bytes**. It does not parse MAVLink — that stays in
-Galapagos, where the message set changes faster than field firmware does.
-The ESP32's only job is to move bytes from its UART to a UDP socket and
-back, dropping-and-counting rather than stalling when a link saturates,
-and to tell you (with one LED) that it's still alive.
+Galapagos Bridge is a small ESP32 device that connects your **ground telemetry radio** to Galapagos GCS over Wi-Fi.
 
-## Why this exists
+It is especially useful with iPhone and iPad, where USB telemetry radios cannot normally be connected directly.
 
-Apple does not let iOS apps open USB serial devices (the hardware would
-need an MFi chip; telemetry radios don't have one). So an iOS GCS needs a
-WiFi hop. The ESP32 is the $4 version of that hop. It is also the best
-version: no cable to snap mid-flight, phone stays in your hand, and the
-power bank runs both the radio and the bridge.
+The bridge simply forwards the telemetry data between your radio and Galapagos.
 
-## What you need
+It does **not** need to understand or modify MAVLink.
 
-| Part | Notes |
-|---|---|
-| ESP32, ESP32-S3, or ESP32-C3 board | DevKitC pinout assumed |
-| Telemetry radio **ground** module | SiK (57600) or LoRa (9600) |
-| USB power bank | ≥ 1 A; both radios and the bridge draw from it |
+The complete setup looks like this:
 
-## Wiring
+```text
+DRONE
 
-Four wires, no soldering (jumper wires are fine):
-
-| Radio pin | ESP32 / ESP32-S3 | ESP32-C3 |
-|---|---|---|
-| GND | GND | GND |
-| VCC | 5V / VIN | 5V / VIN |
-| TX  | GPIO16 (UART2 RX) | GPIO7 (UART1 RX) |
-| RX  | GPIO17 (UART2 TX) | GPIO6 (UART1 TX) |
-
-> **5V radios.** Modern radios (3DR SiK V2, Holybro SiK V3, most LoRa
-> modules) run 3.3 V logic and connect directly. If your radio's pins are
-> labeled 5 V, put a logic-level converter (or a 1.8 kΩ / 3.3 kΩ divider)
-> between the radio TX and ESP32 RX — a 5 V signal on a 3.3 V GPIO will
-> eventually kill the pin.
-
-## Flash it
-
-**Easiest — browser:** serve `web/` (`cd web && npx serve .`) and open it,
-or use the hosted page. Plug in the ESP32, click the button, done. No
-Arduino IDE, no drivers, no toolchain.
-
-> **Which browser?** The web flasher uses the Web Serial API, so it works
-> in **Chrome or Edge on your computer** (served over HTTPS or localhost).
-> **Firefox does not support Web Serial**, and iOS Safari cannot flash
-> either. On an iPhone/iPad, flash the bridge from a laptop first, then join
-> the bridge's WiFi from the phone.
-
-**Or ESP-IDF:**
-```sh
-source $IDF_PATH/export.sh
-idf.py flash monitor
+Flight Controller
+       │
+       │ UART
+       ▼
+  Air Telemetry Radio
+       ))))))))))))))
+       ((((((((((((((
+  Ground Telemetry Radio
+       │
+       │ UART
+       ▼
+      ESP32
+       │
+       │ Wi-Fi
+       ▼
+  iPhone / iPad
+       │
+       ▼
+  Galapagos GCS
 ```
 
-After boot the bridge advertises WiFi **`Galapagos-Bridge`**
-(password `galapagos`) on 192.168.4.1. Join it from your phone, open
-Galapagos, leave host `0.0.0.0` / port `14550`, tap Connect.
+The ESP32 does not replace your telemetry radio.
 
-> **Host semantics in Galapagos.** `0.0.0.0:14550` means the app LISTENS
-> (UDP receive) for the bridge's broadcast/telemetry — the zero-config
-> story, and the one you want for a phone. `192.168.4.1` would mean the
-> app actively SENDS to the bridge (UDP transmit). You want the former:
-> the bridge pushes telemetry to `0.0.0.0:14550`; you only need a concrete
-> bridge IP if you switch Galapagos to `udpout://192.168.4.1:14550` mode
-> (e.g. for desktop use), and even then the app must be told to actively
-> send rather than listen.
+It acts as the wireless connection between the **ground radio** and Galapagos.
 
-## Configuration
+---
 
-Build-time defaults live in `main/bridge/config.hpp`; the values a pilot
-actually changes are read from NVS and override them, so reflashing isn't
-needed:
+# What You Need
 
-| Key | Default | Meaning |
-|---|---|---|
-| `ssid` | `Galapagos-Bridge` | AP name |
-| `pass` | `galapagos` | AP password |
-| `channel` | 1 | AP channel |
-| `baud` | 57600 | radio baud (LoRa: set to 9600) |
+You need only four things:
 
-Write them once with `idf.py` (NVS partition already built in):
+1. An ESP32, ESP32-S3, or ESP32-C3 board
+2. A **ground-side telemetry radio**
+3. A USB power source
+4. Galapagos GCS
+
+The bridge supports common MAVLink telemetry radios such as:
+
+* SiK radios
+* Compatible LoRa telemetry radios
+* Other serial MAVLink telemetry radios
+
+Typical baud rates:
+
+* SiK: **57600**
+* LoRa: **9600**
+
+---
+
+# Important: Which Radio Goes to the ESP32?
+
+This is the most important part.
+
+You connect the **GROUND radio** to the ESP32.
+
+Do **not** connect the ESP32 to the radio installed on the drone.
+
+Your setup should look like this:
+
+```text
+DRONE
+
+Flight Controller
+       │
+       ▼
+   AIR RADIO
+       )))))))))))))
+       ((((((((((((
+   GROUND RADIO
+       │
+       ▼
+      ESP32
+       │
+       ▼
+     Wi-Fi
+       │
+       ▼
+   Galapagos
+```
+
+The air radio stays connected to the flight controller.
+
+The ground radio connects to the ESP32.
+
+---
+
+# Quick Start
+
+If you have never used an ESP32 before, follow these steps.
+
+## Step 1 — Flash the ESP32
+
+You do **not** need Arduino IDE.
+
+You do **not** need to compile the firmware.
+
+You do **not** need to use the command line.
+
+You can install the bridge directly from your web browser.
+
+### What is a Web Flasher?
+
+A Web Flasher is simply a webpage that installs the Galapagos Bridge firmware directly onto your ESP32 through USB.
+
+You do not need to know what firmware is.
+
+Think of it like installing an operating system onto the ESP32.
+
+### What you need
+
+Connect the ESP32 to your computer using a USB **data** cable.
+
+> **Important:** Some USB cables are power-only cables and cannot transfer data. If the ESP32 does not appear, try another USB cable.
+
+### Install the firmware
+
+1. Connect the ESP32 to your computer.
+2. Open the Galapagos Bridge Web Flasher.
+3. Click **Install / Flash**.
+4. Your browser will ask which USB device to use.
+5. Select your ESP32.
+6. Select the ESP32 board type if asked.
+7. Let the installer finish.
+8. Disconnect the ESP32 when the installation is complete.
+
+That's it.
+
+You do not need Arduino IDE.
+
+### Supported boards
+
+The Web Flasher currently supports:
+
+* ESP32
+* ESP32-S3
+* ESP32-C3
+
+### Supported browsers
+
+Use a desktop version of:
+
+* Google Chrome
+* Microsoft Edge
+
+The Web Flasher uses the browser's Web Serial feature.
+
+> **Firefox cannot flash** — it does not support Web Serial.
+
+> **iPhone and iPad cannot flash the ESP32 directly.**
+>
+> Flash the ESP32 using a computer first. After flashing, you can use the bridge normally from your iPhone or iPad.
+
+---
+
+# Step 2 — Connect Your Ground Radio
+
+Disconnect the ESP32 from your computer if necessary.
+
+Connect the **ground telemetry radio** to the ESP32.
+
+You only need four connections:
+
+| Radio | ESP32 / ESP32-S3 | ESP32-C3 |
+| ----- | ---------------- | -------- |
+| GND   | GND              | GND      |
+| VCC   | 5V / VIN         | 5V / VIN |
+| TX    | GPIO16           | GPIO7    |
+| RX    | GPIO17           | GPIO6    |
+
+Remember:
+
+```text
+Radio TX → ESP32 RX
+Radio RX → ESP32 TX
+GND      → GND
+VCC      → VCC
+```
+
+You do not need to solder anything if your hardware has suitable jumper connectors.
+
+---
+
+# Check Your Radio Voltage
+
+Most modern telemetry radios use **3.3 V logic** even when powered from 5 V.
+
+For example, many SiK radios can be connected directly.
+
+However, if your radio outputs **5 V logic**, do not connect its TX signal directly to an ESP32 GPIO.
+
+Use an appropriate logic-level converter or voltage divider.
+
+A 5 V signal connected directly to an ESP32 GPIO can damage the ESP32.
+
+If you are unsure about your radio's logic voltage, check its hardware documentation before connecting it.
+
+---
+
+# Step 3 — Power the Bridge
+
+The easiest setup is a USB power bank.
+
+Connect:
+
+```text
+USB Power Bank
+      │
+      ├── ESP32
+      │
+      └── Ground Radio
+```
+
+A power source capable of supplying at least **1 A** is recommended.
+
+You do not need to keep the ESP32 connected to your computer while flying.
+
+---
+
+# Step 4 — Turn On the Bridge
+
+After powering the ESP32, wait a few seconds.
+
+The bridge creates its own Wi-Fi network:
+
+```text
+Wi-Fi name:
+Galapagos-Bridge
+
+Password:
+galapagos
+```
+
+The bridge normally uses:
+
+```text
+192.168.4.1
+```
+
+---
+
+# Step 5 — Connect Your Phone or Tablet
+
+On your iPhone or iPad:
+
+1. Open **Settings**.
+2. Open **Wi-Fi**.
+3. Find **Galapagos-Bridge**.
+4. Enter the password:
+
+```text
+galapagos
+```
+
+5. Wait until your device connects.
+
+You are now connected directly to the ESP32.
+
+You do not need internet access for this connection.
+
+---
+
+# Step 6 — Open Galapagos
+
+Open Galapagos GCS.
+
+Choose the Wi-Fi / UDP MAVLink connection.
+
+Use:
+
+```text
+Host: 0.0.0.0
+Port: 14550
+```
+
+The bridge forwards the MAVLink traffic between your ground radio and Galapagos.
+
+Once the flight controller's heartbeat is detected, Galapagos automatically identifies the vehicle and autopilot.
+
+You do not need to manually select:
+
+* ArduPilot
+* PX4
+* Copter
+* Plane
+* Rover
+
+Galapagos detects the vehicle through MAVLink.
+
+### How the host setting works
+
+Galapagos treats the host field two different ways:
+
+| Host | What Galapagos does |
+|------|--------------------|
+| `0.0.0.0` | **Listens** for the bridge (`udp://`). The bridge broadcasts telemetry to port 14550 and the app picks it up. This is the zero-config phone flow. |
+| `192.168.4.1` | **Actively sends** to the bridge (`udpout://`). Use this only if you switch Galapagos to active-send mode (for example on a desktop). |
+
+For a phone or tablet, leave the host at **`0.0.0.0`**. The bridge finds the app — you do not need to tell the app where the bridge is.
+
+---
+
+# Step 7 — Check the Bridge LED
+
+The ESP32 has a status LED.
+
+| LED        | Meaning                                        |
+| ---------- | ---------------------------------------------- |
+| Solid      | Radio link is active and data is being relayed |
+| Slow blink | No radio data detected for more than 5 seconds |
+| Fast blink | Wi-Fi is connecting                            |
+| Off        | Fatal hardware/software error                  |
+
+If the LED is solid and Galapagos receives telemetry, your bridge is working.
+
+---
+
+# That's It
+
+Your complete setup is:
+
+```text
+             DRONE
+               │
+        Flight Controller
+               │
+               │ UART
+               ▼
+          Air Radio
+               ))))
+               ((((
+          Ground Radio
+               │
+               │ UART
+               ▼
+             ESP32
+               │
+               │ Wi-Fi
+               ▼
+          iPhone / iPad
+               │
+               ▼
+          Galapagos GCS
+```
+
+The ESP32 simply carries the MAVLink data between the ground radio and Galapagos.
+
+---
+
+# Troubleshooting
+
+## I cannot see "Galapagos-Bridge"
+
+1. Make sure the ESP32 is powered.
+2. Wait 5–10 seconds.
+3. Restart the ESP32.
+4. Make sure the board was successfully flashed.
+5. Try another USB power source.
+
+---
+
+## My phone connects to the Wi-Fi but Galapagos receives no telemetry
+
+Check the physical radio connections:
+
+```text
+Radio TX → ESP32 RX
+Radio RX → ESP32 TX
+GND      → GND
+```
+
+Also check that:
+
+* The ground radio is powered.
+* The air radio is powered.
+* The air radio is connected to the flight controller.
+* The telemetry radio baud rate is correct.
+
+For a standard SiK setup, **57600 baud** is the normal starting point.
+
+---
+
+## The bridge LED is slowly blinking
+
+This means the ESP32 has not received radio data for more than approximately 5 seconds.
+
+The Wi-Fi connection can still be working.
+
+Check the connection between:
+
+```text
+Ground Radio ↔ ESP32
+```
+
+and then check:
+
+```text
+Air Radio ↔ Flight Controller
+```
+
+---
+
+## I flashed the wrong board
+
+Run the Web Flasher again and select the correct ESP32 family.
+
+The supported families are:
+
+* ESP32
+* ESP32-S3
+* ESP32-C3
+
+---
+
+## I am using a LoRa radio
+
+Set the radio baud rate to:
+
+```text
+9600
+```
+
+The default bridge baud rate is:
+
+```text
+57600
+```
+
+SiK radios normally use 57600.
+
+---
+
+# Configuration
+
+Most users never need to change the configuration.
+
+The default configuration is:
+
+| Setting        | Default            |
+| -------------- | ------------------ |
+| Wi-Fi name     | `Galapagos-Bridge` |
+| Wi-Fi password | `galapagos`        |
+| Wi-Fi channel  | `1`                |
+| Radio baud     | `57600`            |
+| UDP port       | `14550`            |
+
+The Wi-Fi name, password, channel, and radio baud rate can be stored in the ESP32's non-volatile storage.
+
+This means you do not normally need to recompile the firmware just to change these settings.
+
+---
+
+# Changing the Wi-Fi Name or Password
+
+Advanced users can change the stored configuration using ESP-IDF.
+
+For example:
+
 ```sh
 idf.py --port /dev/cu.usbserial-0001 nvs-flash --key ssid --value MyBridge
 ```
 
-> **Firmware update & your settings:** the web flasher offers an "erase
-> device" prompt on a fresh install. Erasing also wipes the NVS overrides
-> above (WiFi name/password, baud) back to defaults, so re-save them after
-> reflashing — or skip the erase and keep them.
+Most users should not need this.
 
-Pins and LED are compile-time only (`kUartTxPin`/`kUartRxPin`/`kLedPin`).
+The default configuration is ready to use immediately after flashing:
 
-## Architecture
-
+```text
+Wi-Fi:     Galapagos-Bridge
+Password:  galapagos
 ```
+
+---
+
+# Firmware Updates
+
+When installing new firmware, the Web Flasher may offer an option to erase the ESP32.
+
+Erasing the device also removes saved configuration such as:
+
+* Wi-Fi name
+* Wi-Fi password
+* Radio baud rate
+
+If you want to keep your custom settings, do not erase the device unless the installer specifically requires it.
+
+After an erase, the bridge returns to its default configuration.
+
+---
+
+# How the Bridge Works
+
+The bridge does not parse MAVLink.
+
+It simply forwards bytes.
+
+```text
+UART RX
+   │
+   ▼
+RX buffer
+   │
+   ▼
+UDP broadcast
+   │
+   ▼
+Galapagos
+
+
+Galapagos
+   │
+   ▼
+UDP
+   │
+   ▼
+TX buffer
+   │
+   ▼
+UART TX
+   │
+   ▼
+Ground Radio
+```
+
+MAVLink parsing, vehicle detection, missions, parameters, commands, geofences, and flight data are handled by Galapagos GCS.
+
+This keeps the bridge simple and allows Galapagos to support new MAVLink features without requiring a new bridge firmware for every protocol change.
+
+---
+
+# Performance and Reliability
+
+The bridge uses lock-free single-producer/single-consumer buffers for the two data paths.
+
+When the link becomes saturated, the bridge drops and counts excess data instead of blocking the UART.
+
+This prevents the radio interface from being stalled by a congested Wi-Fi connection.
+
+The bridge also has a radio activity watchdog.
+
+If no UART data is received for approximately 5 seconds, the bridge reports the radio link as silent and changes the LED state.
+
+The bridge itself does not decide whether the aircraft is connected.
+
+Galapagos uses MAVLink heartbeat monitoring to determine whether the flight controller is actually online.
+
+---
+
+# Hardware Architecture
+
+```text
 main/bridge/
-├── spsc_ring.hpp      SPSC lock-free byte ring (two of these)
-├── state_machine.hpp  compile-time transition table, duplicate edges = build error
-├── config.hpp/.cpp    constexpr defaults + NVS overrides
-├── uart_radio.hpp/.cpp   ESP-IDF UART2 driver wrapper
-├── wifi_ap.hpp/.cpp      SoftAP bring-up
-├── udp_relay.hpp/.cpp    single UDP socket, broadcast out / command in
-├── app_state.hpp/.cpp    shared rings + the four relay tasks
-├── link_watch.cpp        radio-silence watchdog (drives the state machine)
-└── state_machine.cpp     transition logging
+├── spsc_ring.hpp
+├── state_machine.hpp
+├── config.hpp
+├── config.cpp
+├── uart_radio.hpp
+├── uart_radio.cpp
+├── wifi_ap.hpp
+├── wifi_ap.cpp
+├── udp_relay.hpp
+├── udp_relay.cpp
+├── app_state.hpp
+├── app_state.cpp
+├── link_watch.cpp
+└── state_machine.cpp
 ```
 
-The data path is two lock-free hops, both single-producer/single-consumer:
+The bridge uses:
 
-```
-UART RX ──▶ rx_ring ──▶ UDP broadcast ──▶ Galapagos
-UDP RX ──▶ tx_ring ──▶ UART TX ──▶ radio
-```
+* ESP-IDF
+* UART
+* Wi-Fi SoftAP
+* UDP
+* lock-free SPSC buffers
+* non-blocking relay architecture
+* NVS configuration storage
 
-- **`spsc_ring.hpp`** — no mutex, no CAS: one writer and one reader each
-  touching a separate cache line, publish/consume via acquire/release.
-  When the link saturates the bridge drops-and-counts instead of blocking
-  the UART (the ISR must never stall). `dropped()` tells you it happened.
-- **`state_machine.hpp`** — the link lifecycle is a `constexpr` table.
-  Transitions you never declared are impossible at runtime; two handlers
-  claiming the same edge fail the build.
-- **Watchdog** — the bridge can't parse MAVLink, but it *can* count bytes.
-  5 s without any UART traffic flips the state machine to `link-silent`
-  and the LED starts blinking — mirroring the heartbeat watchdog Galapagos
-  runs on its side.
-- **The LED** — solid = link up, slow blink = radio silent, fast blink =
-  WiFi connecting, off = error. The pilot reads the bridge without the app.
+---
 
-## Status LED
+# Supported Hardware
 
-| Pattern | Meaning |
-|---|---|
-| solid | link up, relaying |
-| slow blink (500 ms) | radio silent > 5 s |
-| fast blink (200 ms) | WiFi still connecting |
-| off | fatal error |
+### ESP32
 
-## License
+Standard ESP32 development boards are supported.
+
+### ESP32-S3
+
+ESP32-S3 development boards are supported.
+
+### ESP32-C3
+
+ESP32-C3 development boards are supported using its dedicated UART configuration.
+
+---
+
+# License
 
 See [LICENSE](LICENSE).
