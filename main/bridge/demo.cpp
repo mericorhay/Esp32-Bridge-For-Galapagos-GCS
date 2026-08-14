@@ -237,20 +237,21 @@ static void send_heartbeat(UdpRelay& relay) {
 }
 
 static void send_sys_status(UdpRelay& relay) {
-    // SYS_STATUS (msgid 1), payload 40 bytes: present(4) enabled(4) healthy(4)
-    // load(2) voltage(2) current(2) drop(2) errors_comm(2) errors1..4(2x4)
-    // battery_remaining(1) + extensions.
-    uint8_t p[40] = {0};
+    // SYS_STATUS (msgid 1), payload 31 bytes: present u32(0), enabled u32(4),
+    // health u32(8), load u16(12), voltage u16(14), current i16(16),
+    // battery_remaining i8(18), drop_rate_comm u16(19), errors_comm u16(21),
+    // errors_count1..4 u16(23,25,27,29).
+    uint8_t p[31] = {0};
     uint32_t sensors = 0x2F802102;
     put_u32(p, 0, sensors);
     put_u32(p, 4, sensors);
     put_u32(p, 8, sensors);
     put_u16(p, 12, 55);   // load %
     put_u16(p, 14, static_cast<uint16_t>(s_batt_v * 1000.0f));
-    put_u16(p, 16, 8400); // current cA (negative = discharging)
-    put_u16(p, 18, 0);    // drop_rate_comm
-    put_u16(p, 20, 0);    // errors_comm
-    p[28] = s_batt_pct;   // battery_remaining (byte 28 in 40-byte layout)
+    put_i16(p, 16, -8400); // current cA (negative = discharging)
+    p[18] = s_batt_pct;   // battery_remaining
+    put_u16(p, 19, 0);    // drop_rate_comm
+    put_u16(p, 21, 0);    // errors_comm
     demo_send_frame(relay, 1, std::span<const uint8_t>(p, sizeof p));
 }
 
@@ -258,7 +259,7 @@ static void send_gps(UdpRelay& relay) {
     // GPS_RAW_INT (msgid 24), payload 30 bytes: time_usec(8) lat(4) lon(4)
     // alt(4) eph(2) epv(2) vel(2) cog(2) fix(1) satellites(1).
     uint8_t p[30] = {0};
-    put_u32(p, 0, static_cast<uint32_t>(s_t * 1e6f));
+    put_u32(p, 0, static_cast<uint32_t>(s_t * 1e6f)); // time_usec low 32 bits
     put_i32(p, 8, static_cast<int32_t>(s_lat * 1e7f));
     put_i32(p, 12, static_cast<int32_t>(s_lon * 1e7f));
     put_i32(p, 16, static_cast<int32_t>(s_alt * 1000.0f));
@@ -285,9 +286,9 @@ static void send_attitude(UdpRelay& relay) {
 }
 
 static void send_gpos(UdpRelay& relay) {
-    // GLOBAL_POSITION_INT (msgid 33), full 28-byte payload: time u32, lat i32,
+    // GLOBAL_POSITION_INT (msgid 33), payload 34 bytes: time u32, lat i32,
     // lon i32, alt i32, relative_alt i32, vx i32, vy i32, vz i32, hdg u16.
-    uint8_t p[28] = {0};
+    uint8_t p[34] = {0};
     put_u32(p, 0, static_cast<uint32_t>(s_t * 1e6f));
     put_i32(p, 4, static_cast<int32_t>(s_lat * 1e7f));
     put_i32(p, 8, static_cast<int32_t>(s_lon * 1e7f));
@@ -321,7 +322,8 @@ static void send_vfr(UdpRelay& relay) {
     put_f32(p, 4, 4.2f);
     put_f32(p, 8, s_alt);
     put_f32(p, 12, 0.3f);
-    put_i32(p, 16, static_cast<int32_t>(s_heading)); // heading i16 at 16..18
+    put_i16(p, 16, static_cast<int16_t>(s_heading)); // heading i16 at 16..17
+    p[18] = 0; // throttle
     demo_send_frame(relay, 74, std::span<const uint8_t>(p, sizeof p));
 }
 
@@ -344,14 +346,16 @@ static void send_battery(UdpRelay& relay) {
 }
 
 static void send_radio_status(UdpRelay& relay) {
+    // RADIO_STATUS (msgid 109), payload 9 bytes: rssi u8(0), remrssi u8(1),
+    // txbuf u8(2), noise u8(3), remnoise u8(4), rxerrors u16(5), fixed u16(7).
     uint8_t p[9] = {0};
-    put_u16(p, 0, 0);
-    put_u16(p, 2, 0);
-    p[4] = s_rssi;
-    p[5] = s_rssi - 6;
-    p[6] = 50;
-    p[7] = 30;
-    p[8] = 36;
+    p[0] = s_rssi;
+    p[1] = s_rssi - 6;
+    p[2] = 50;   // txbuf %
+    p[3] = 30;   // noise
+    p[4] = 36;   // remnoise
+    put_u16(p, 5, 0);  // rxerrors
+    put_u16(p, 7, 0);  // fixed
     demo_send_frame(relay, 109, p);
 }
 

@@ -42,11 +42,13 @@ bool UartRadio::init(uint32_t baud, uint8_t tx_pin, uint8_t rx_pin) noexcept {
     }
     if (uart_param_config(kUartNum, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "uart param config failed");
+        uart_driver_delete(kUartNum);  // release the driver installed above
         return false;
     }
     if (uart_set_pin(kUartNum, tx_pin, rx_pin, UART_PIN_NO_CHANGE,
                      UART_PIN_NO_CHANGE) != ESP_OK) {
         ESP_LOGE(TAG, "uart pin config failed");
+        uart_driver_delete(kUartNum);
         return false;
     }
 #if defined(TARGET_ESP32C3)

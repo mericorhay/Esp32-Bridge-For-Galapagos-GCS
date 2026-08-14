@@ -19,3 +19,4 @@ sdkconfig.*.bak
 # SDK configs generated per-target by PlatformIO
 sdkconfig.esp32
 sdkconfig.esp32c3
+sdkconfig.esp32s3

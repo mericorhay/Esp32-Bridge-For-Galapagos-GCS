@@ -12,6 +12,7 @@
 // spsc_ring.hpp). Notifications use task notifications (semaphore-ish),
 // not polling — the consumer sleeps until its producer has work.
 
+#include <atomic>
 #include <cstdint>
 
 #include "bridge/spsc_ring.hpp"
@@ -30,6 +31,13 @@ extern SpScRing<kRxRingCapacity> g_rx_ring;
 extern SpScRing<kTxRingCapacity> g_tx_ring;
 extern UdpRelay g_relay;
 extern StateMachine g_sm;
+
+// Microsecond timestamp (esp_timer) of the last byte arrival on the radio
+// UART, written by uart_rx_task and read by link_watch_task. This is the
+// *arrival* signal, not "is the ring currently non-empty" — the consumer
+// drains the ring quickly, so a ring-empty check would otherwise let the
+// watchdog think the radio went silent while bytes are still streaming.
+extern std::atomic<int64_t> g_last_uart_rx_us;
 
 // Bring up the pipeline: init the UART (at `baud`) and UDP relay, create
 // the four relay tasks plus the watchdog/LED tasks. Call after WiFi is up

@@ -5,6 +5,7 @@
 
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -21,6 +22,7 @@ SpScRing<kRxRingCapacity> g_rx_ring;
 SpScRing<kTxRingCapacity> g_tx_ring;
 UdpRelay g_relay;
 StateMachine g_sm;
+std::atomic<int64_t> g_last_uart_rx_us{0};
 
 // Task handles for cross-task notifications.
 static TaskHandle_t s_udp_tx_task;
@@ -72,6 +74,7 @@ void uart_rx_task(void*) {
     for (;;) {
         size_t n = s_uart.read(buf, 20);
         if (n == 0) continue;
+        g_last_uart_rx_us.store(esp_timer_get_time(), std::memory_order_release);
         size_t stored = g_rx_ring.push(buf, n);
         if (stored < n) {
             ESP_LOGW(TAG, "rx ring full: dropped %u bytes",
@@ -107,7 +110,16 @@ void udp_rx_task(void*) {
         uint32_t peer = 0;
         size_t n = g_relay.recv(std::span<uint8_t>(buf, sizeof buf), 50, &peer);
         if (n == 0) continue;
-        g_tx_ring.push(buf, n);
+        // Same overflow guard the radio→app path uses: if the TX ring is
+        // full (radio slow, GCS bursting commands), keep what fits and drop
+        // the rest rather than blocking the UDP socket. `dropped()` on the
+        // TX ring counts what was lost, so the overflow is measurable, not
+        // silent.
+        size_t stored = g_tx_ring.push(buf, n);
+        if (stored < n) {
+            ESP_LOGW(TAG, "tx ring full: dropped %u bytes",
+                     static_cast<unsigned>(n - stored));
+        }
         xTaskNotifyGive(s_uart_tx_task);
     }
 }
@@ -118,8 +130,22 @@ void uart_tx_task(void*) {
         for (;;) {
             auto span = g_tx_ring.pop_front();
             if (span.empty()) break;
-            s_uart.write(span);
-            g_tx_ring.consume(span.size());
+            // A radio UART can accept a partial write (or none at all if its
+            // TX FIFO is momentarily full). Consume only the bytes actually
+            // written so the remainder is retried on the next round instead
+            // of silently dropped — losing bytes mid-frame would corrupt the
+            // stream the autopilot sees. A persistent full FIFO would spin
+            // this tight loop, so yield once between retries.
+            size_t written = s_uart.write(span);
+            if (written == 0) {
+                vTaskDelay(pdMS_TO_TICKS(1));
+                continue;
+            }
+            g_tx_ring.consume(written);
+            if (written < span.size()) {
+                // Room for more of the same block — retry the remainder now.
+                continue;
+            }
         }
     }
 }

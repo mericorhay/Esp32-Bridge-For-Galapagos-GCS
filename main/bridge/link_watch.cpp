@@ -21,13 +21,14 @@ namespace bridge {
 // flips the state machine to LinkSilent, which the app mirrors with its
 // own heartbeat watchdog once it stops receiving anything.
 void link_watch_task(void*) {
-    int64_t last_rx = esp_timer_get_time();
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(500));
-        if (!g_rx_ring.empty()) {
-            last_rx = esp_timer_get_time();
-            continue;
-        }
+        // Read the arrival timestamp written by uart_rx_task, not the ring's
+        // current emptiness — the consumer drains the ring fast, so checking
+        // `g_rx_ring.empty()` would read "the ring happens to be empty right
+        // now" and could fire RadioSilence while bytes are still streaming.
+        int64_t last_rx = g_last_uart_rx_us.load(std::memory_order_acquire);
+        if (last_rx == 0) continue;  // no UART traffic yet — still booting
         int64_t silent_us = esp_timer_get_time() - last_rx;
         if (silent_us > static_cast<int64_t>(kLinkTimeoutSeconds) * 1'000'000) {
             if (g_sm.dispatch(Event::RadioSilence)) {
@@ -35,7 +36,7 @@ void link_watch_task(void*) {
             }
             // Avoid re-firing every 500 ms: reset the clock so the next
             // RadioSilence can only come after another full timeout.
-            last_rx = esp_timer_get_time();
+            g_last_uart_rx_us.store(esp_timer_get_time(), std::memory_order_release);
         }
     }
 }

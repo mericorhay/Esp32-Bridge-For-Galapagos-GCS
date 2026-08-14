@@ -34,6 +34,8 @@ bool UdpRelay::init(uint16_t port) noexcept {
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     if (bind(fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         ESP_LOGE(TAG, "bind %u: %s", port, strerror(errno));
+        close(fd_);
+        fd_ = -1;
         return false;
     }
 

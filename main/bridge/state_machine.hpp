@@ -56,7 +56,7 @@ constexpr size_t kLinkTimeoutSeconds = 5;
 // that carries runtime state).
 void on_enter(State from, State to);
 
-constexpr std::array<Transition, 9> kTransitions = {{
+constexpr std::array<Transition, 15> kTransitions = {{
     {State::Boot,          Event::WifiUp,       State::WifiConnected, on_enter},
     {State::WifiConnecting, Event::WifiUp,      State::WifiConnected, on_enter},
     {State::WifiConnected, Event::WifiDown,     State::WifiConnecting, on_enter},
@@ -65,7 +65,16 @@ constexpr std::array<Transition, 9> kTransitions = {{
     {State::LinkUp,        Event::RadioSilence, State::LinkSilent,    on_enter},
     {State::LinkSilent,    Event::RadioData,    State::LinkUp,        on_enter},
     {State::LinkSilent,    Event::Fatal,        State::Error,         on_enter},
+    // Fatal is reachable from every pre-Error state — `app_main` dispatches
+    // it when AP bring-up or pipeline bring-up fails, at which point the
+    // machine may still be in Boot/WifiConnecting/WifiConnected/LinkUp.
+    {State::Boot,          Event::Fatal,        State::Error,         on_enter},
+    {State::WifiConnecting, Event::Fatal,       State::Error,         on_enter},
+    {State::WifiConnected, Event::Fatal,        State::Error,         on_enter},
+    {State::LinkUp,        Event::Fatal,        State::Error,         on_enter},
     {State::Error,         Event::WifiUp,       State::WifiConnected, on_enter},
+    {State::Error,         Event::WifiDown,     State::WifiConnecting, on_enter},
+    {State::Error,         Event::Fatal,        State::Error,         on_enter},
 }};
 
 // Compile-time validation: every (from, on) pair must be unique.

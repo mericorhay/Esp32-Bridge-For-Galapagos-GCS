@@ -28,6 +28,17 @@ static void ap_sta_ipassigned_handler(void*, esp_event_base_t, int32_t,
     demo_set_peer(ip);
 }
 
+// When the GCS drops off the AP (phone sleeps, walks out of range, or the
+// pilot closes the app), forget its IP so the demo does not keep unicasting
+// telemetry at a stale address. The next STA to join gets its own
+// IP_EVENT_AP_STAIPASSIGNED and re-arms the peer.
+static void ap_sta_disconnected_handler(void*, esp_event_base_t, int32_t,
+                                        void* event_data) {
+    (void)event_data;
+    ESP_LOGW(TAG, "STA disconnected; clearing peer IP");
+    demo_set_peer(0);
+}
+
 bool wifi_ap_start(const BridgeConfig& cfg) noexcept {
     // WiFi needs NVS for its own persistence (stored MAC, calibration).
     // The bridge otherwise never writes NVS except the pilot's overrides.
@@ -53,6 +64,11 @@ bool wifi_ap_start(const BridgeConfig& cfg) noexcept {
     ESP_ERROR_CHECK(esp_event_handler_register(
         IP_EVENT, IP_EVENT_AP_STAIPASSIGNED, ap_sta_ipassigned_handler,
         nullptr));
+    // And the disconnect lives on WIFI_EVENT — clear the learned peer so
+    // telemetry stops going to a stale address once the phone leaves.
+    ESP_ERROR_CHECK(esp_event_handler_register(
+        WIFI_EVENT, WIFI_EVENT_AP_STADISCONNECTED,
+        ap_sta_disconnected_handler, nullptr));
 
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&init));

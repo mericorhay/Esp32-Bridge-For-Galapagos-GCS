@@ -58,8 +58,8 @@ your telemetry radio, feeding Galapagos GCS over UDP.
 The bridge relays **raw bytes**. It does not parse MAVLink — that stays in
 Galapagos, where the message set changes faster than field firmware does.
 The ESP32's only job is to move bytes from its UART to a UDP socket and
-back, without losing any, and to tell you (with one LED) that it's still
-alive.
+back, dropping-and-counting rather than stalling when a link saturates,
+and to tell you (with one LED) that it's still alive.
 
 ## Why this exists
 
