@@ -27,6 +27,21 @@ class UartRadio {
 
     // Write `n` bytes. Returns bytes actually queued to the driver.
     size_t write(std::span<const uint8_t> bytes) noexcept;
+
+    // Find the radio's real baud rate by scanning the usual suspects
+    // (SiK 57600, telemetry 115200, ELRS 460800, LoRa 9600...) and
+    // listening for a chain of well-formed MAVLink frames on each. The
+    // configured rate is tried first, so a pilot who knows their radio
+    // still wins; unknown radios just work. On failure the configured
+    // baud stays in effect and `false` is returned (caller logs).
+    bool autobaud_scan(uint32_t configured_baud) noexcept;
+
+    // The baud rate currently in effect (configured, or the one the scan
+    // locked onto). 0 until init() succeeds.
+    uint32_t current_baud() const noexcept { return baud_; }
+
+  private:
+    uint32_t baud_ = 0;
 };
 
 }  // namespace bridge

@@ -46,6 +46,13 @@ bool start_pipeline(uint32_t baud) {
         return true;
     }
 
+    // Lock onto the radio's real baud (SiK 57600, ELRS 460800, LoRa 9600
+    // ...) so a pilot can plug in any telemetry radio without configuring
+    // anything. Falls back to the configured rate if no MAVLink stream is
+    // heard — a radio that is powered off at boot simply re-arms itself
+    // the normal way.
+    s_uart.autobaud_scan(baud);
+
     if (!g_relay.init(kUdpPort)) return false;
 
     // Priorities: relay tasks share a level and cooperate via notifications
