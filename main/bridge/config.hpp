@@ -49,4 +49,10 @@ constexpr BridgeConfig kDefaultConfig = {
 // usable (so the caller can log a meaningful error instead of guessing).
 bool load_config(BridgeConfig& out);
 
+// Persist `cfg` to NVS so it survives a reboot. Call only after
+// nvs_flash_init() (i.e. not before load_config/wifi bring-up). Returns
+// true on a full write. The values that matter are the WiFi SSID/password,
+// channel and radio baud — pins stay compile-time.
+bool save_config(const BridgeConfig& cfg);
+
 }  // namespace bridge

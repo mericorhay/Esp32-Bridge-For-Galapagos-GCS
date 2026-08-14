@@ -100,6 +100,12 @@ Four wires, no soldering (jumper wires are fine):
 or use the hosted page. Plug in the ESP32, click the button, done. No
 Arduino IDE, no drivers, no toolchain.
 
+> **Which browser?** The web flasher uses the Web Serial API, so it works
+> in **Chrome, Edge, or Firefox on your computer** (served over HTTPS or
+> localhost). **iOS Safari cannot flash** — Web Serial isn't available on
+> iOS. On an iPhone/iPad, flash the bridge from a laptop first, then join
+> the bridge's WiFi from the phone.
+
 **Or ESP-IDF:**
 ```sh
 source $IDF_PATH/export.sh
@@ -127,6 +133,11 @@ Write them once with `idf.py` (NVS partition already built in):
 ```sh
 idf.py --port /dev/cu.usbserial-0001 nvs-flash --key ssid --value MyBridge
 ```
+
+> **Firmware update & your settings:** the web flasher offers an "erase
+> device" prompt on a fresh install. Erasing also wipes the NVS overrides
+> above (WiFi name/password, baud) back to defaults, so re-save them after
+> reflashing — or skip the erase and keep them.
 
 Pins and LED are compile-time only (`kUartTxPin`/`kUartRxPin`/`kLedPin`).
 

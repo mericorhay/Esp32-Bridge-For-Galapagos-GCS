@@ -1,38 +1,70 @@
 #!/usr/bin/env bash
-# Build the bridge and stage the binaries the web installer needs.
+# Build the bridge for every supported chip and stage the binaries the web
+# installer needs, matching web/manifest.json exactly:
 #
-# Usage:  tools/build_web.sh   (run from the repo root)
+#   web/builds/esp32/bootloader.bin
+#   web/builds/esp32/partitions.bin
+#   web/builds/esp32/galapagos-bridge.bin
+#   web/builds/esp32s3/...  (same three)
+#   web/builds/esp32c3/...  (same three)
 #
-# Produces:
-#   web/builds/bootloader.bin          0x1000
-#   web/builds/partition-table.bin     0x8000
-#   web/builds/galapagos-bridge.bin    0x10000
+# The manifest's `parts[].path` and `offset` fields are what ESP Web Tools
+# flashes; wrong paths here silently ship a stale build. This script is the
+# only writer of web/builds, and it produces all three chip families.
 #
-# Serve the web/ folder (e.g. `npx serve web`) and open index.html.
+# Usage: tools/build_web.sh    (run from the repo root)
+# Serve web/ (e.g. `npx serve web`) and open index.html in Chrome/Edge/Firefox.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if ! command -v idf.py >/dev/null 2>&1; then
-    echo "idf.py not on PATH. Activate the ESP-IDF environment first:" >&2
-    echo "  source \$IDF_PATH/export.sh" >&2
+if ! command -v pio >/dev/null 2>&1 && ! command -v platformio >/dev/null 2>&1; then
+    echo "PlatformIO not on PATH. Install it first:" >&2
+    echo "  python3 -m pip install --user platformio" >&2
     exit 1
 fi
+PIO="$(command -v pio || command -v platformio)"
 
-idf.py build
+# Chip family -> PlatformIO environment (platformio.ini defines these).
+# (A plain case keeps this working on macOS's legacy bash 3.2, where
+# `declare -A` + `set -u` misbehaves.)
+env_for() { case "$1" in esp32) echo esp32;; esp32s3) echo esp32s3;; esp32c3) echo esp32c3;; esac; }
 
-# The chip family decides the bootloader part layout below. ESP32 classic
-# for now; ESP32-S3/C3 users adjust the manifest offsets (0x0000) or use
-# `idf.py flash` directly.
-APP_NAME=galapagos-bridge
+# ESP Web Tools flashes parts at explicit offsets (see manifest.json). The
+# bootloader offset differs per family: classic ESP32 uses 0x1000, S3/C3
+# put the bootloader at 0x0000.
+boot_offset_for() { case "$1" in esp32) echo 0x1000;; *) echo 0x0000;; esac; }
 
-mkdir -p web/builds
+rm -rf web/builds
 
-# The app image is named after the project; ESP-IDF names it <project>.bin.
-cp "build/${APP_NAME}.bin" "web/builds/galapagos-bridge.bin"
-cp build/bootloader/bootloader.bin "web/builds/bootloader.bin"
-cp build/partition_table/partition-table.bin "web/builds/partition-table.bin"
+for chip in esp32 esp32s3 esp32c3; do
+    echo "=== Building ${chip} ==="
+    env="$(env_for "$chip")"
+    offset="$(boot_offset_for "$chip")"
+    "$PIO" run -e "$env"
 
-echo "Staged. Serve web/ and open it in Chrome/Edge/Firefox:"
+    out="web/builds/${chip}"
+    mkdir -p "$out"
+
+    # PlatformIO stages ESP-IDF outputs under .pio/build/<env>/.
+    src=".pio/build/$env"
+    # PlatformIO names the app image after the project dir; the CMake
+    # project name here is "main", but the linker output is firmware.bin.
+    if [ -f "$src/firmware.bin" ]; then
+        cp "$src/firmware.bin" "$out/galapagos-bridge.bin"
+    else
+        echo "ERROR: $src/firmware.bin not found" >&2
+        exit 1
+    fi
+    cp "$src/bootloader.bin" "$out/bootloader.bin"
+    # Manifest calls it partitions.bin; PlatformIO already names it that
+    # (ESP-IDF's native build would call it partition-table.bin).
+    cp "$src/partitions.bin" "$out/partitions.bin"
+
+    echo "  -> $out/ (bootloader at $offset)"
+done
+
+echo "Staged all three chip families under web/builds/. Serve web/ and open"
+echo "it in Chrome, Edge, or Firefox:"
 echo "  (cd web && npx serve .)"

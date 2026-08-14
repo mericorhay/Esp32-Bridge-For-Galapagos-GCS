@@ -41,4 +41,21 @@ bool load_config(BridgeConfig& out) {
     return true;
 }
 
+bool save_config(const BridgeConfig& cfg) {
+    nvs_handle_t h;
+    if (nvs_open("galapagos", NVS_READWRITE, &h) != ESP_OK) {
+        ESP_LOGE(TAG, "NVS open failed; config not saved");
+        return false;
+    }
+    bool ok = true;
+    ok &= nvs_set_str(h, "ssid", cfg.ssid) == ESP_OK;
+    ok &= nvs_set_str(h, "pass", cfg.password) == ESP_OK;
+    ok &= nvs_set_u8(h, "channel", cfg.channel) == ESP_OK;
+    ok &= nvs_set_u32(h, "baud", cfg.baud) == ESP_OK;
+    ok &= nvs_commit(h) == ESP_OK;
+    nvs_close(h);
+    if (!ok) ESP_LOGE(TAG, "NVS write failed; config not saved");
+    return ok;
+}
+
 }  // namespace bridge

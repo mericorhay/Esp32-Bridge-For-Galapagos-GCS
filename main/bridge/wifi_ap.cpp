@@ -40,21 +40,9 @@ static void ap_sta_disconnected_handler(void*, esp_event_base_t, int32_t,
 }
 
 bool wifi_ap_start(const BridgeConfig& cfg) noexcept {
-    // WiFi needs NVS for its own persistence (stored MAC, calibration).
-    // The bridge otherwise never writes NVS except the pilot's overrides.
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
-        err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        // Partition was built for a different layout or got corrupted in
-        // the field; wiping it is the only recovery, then retry once.
-        nvs_flash_erase();
-        err = nvs_flash_init();
-    }
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_flash_init: %s", esp_err_to_name(err));
-        return false;
-    }
-
+    // NVS is initialized in app_main BEFORE load_config() reads the
+    // pilot's overrides, so WiFi can rely on it already being up here
+    // (it still needs NVS for its own persisted MAC/calibration state).
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_ap();

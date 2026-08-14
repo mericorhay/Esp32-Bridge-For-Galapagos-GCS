@@ -447,7 +447,8 @@ static void send_mission_count(UdpRelay& relay, uint8_t mtype, uint16_t count) {
 // The command field is at offset 28 — NOT offset 2. Getting this wrong
 // means every single command (arm, mode, takeoff, mission start) silently
 // falls into the switch's default and gets an UNSUPPORTED ack.
-static void handle_command_long(UdpRelay& relay, const uint8_t* p) {
+static void handle_command_long(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 30) return;  // reads p[0..29]
     uint16_t cmd = get_u16(p + 28);
     float p1 = get_f32(p + 0);
     float p2 = get_f32(p + 4);
@@ -508,7 +509,8 @@ static void handle_param_request_list(UdpRelay& relay) {
 }
 
 // PARAM_REQUEST_READ (20): param_index i16(0-1) target_sys(2) target_comp(3) id[16](4-19)
-static void handle_param_request_read(UdpRelay& relay, const uint8_t* p) {
+static void handle_param_request_read(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 2) return;  // reads p[0..1]
     int16_t idx = static_cast<int16_t>(get_u16(p + 0));
     if (idx >= 0 && static_cast<size_t>(idx) < kParamCount) {
         send_param_value(relay, static_cast<uint16_t>(idx), &s_params[idx]);
@@ -516,7 +518,8 @@ static void handle_param_request_read(UdpRelay& relay, const uint8_t* p) {
 }
 
 // PARAM_SET (23): target_sys(0) target_comp(1) value f32(2-5) id[16](6-21) type(22)
-static void handle_param_set(UdpRelay& relay, const uint8_t* p) {
+static void handle_param_set(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 23) return;  // reads p[2..21] and p[22]
     char id[17];
     std::memcpy(id, p + 6, 16);
     id[16] = 0;
@@ -536,6 +539,7 @@ static void handle_param_set(UdpRelay& relay, const uint8_t* p) {
 // Note: MAVLink v2 zero-truncation drops trailing zero mission_type=0 and opaque=0,
 // making wire payload length 4 bytes for standard missions.
 static void handle_mission_count(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 2) return;  // reads p[0..1]
     uint16_t count = get_u16(p + 0);
     uint8_t mtype = (plen > 4) ? p[4] : 0;
     s_mission_count = 0;
@@ -554,6 +558,7 @@ static void handle_mission_count(UdpRelay& relay, const uint8_t* p, size_t plen)
 // BUT: v2 truncation drops trailing zero mission_type=0, so the wire payload
 // is 37 bytes and mission_type is NOT present. Default to 0 (MISSION).
 static void handle_mission_item(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 31) return;  // reads p[0..30]
     uint16_t seq = get_u16(p + 28);
     uint8_t mtype = (plen > 37) ? p[37] : 0;  // 0 if truncated
     ESP_LOGI(TAG, "MISSION_ITEM seq=%u type=%u pending=%u plen=%u",
@@ -582,12 +587,14 @@ static void handle_mission_item(UdpRelay& relay, const uint8_t* p, size_t plen) 
 
 // MISSION_REQUEST_LIST (download): reply with our stored count.
 static void handle_mission_request_list(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 3) return;  // reads p[2]
     uint8_t mtype = (plen > 2) ? p[2] : 0;
     send_mission_count(relay, mtype, s_mission_count);
 }
 
 // MISSION_REQUEST_INT (51) incoming: seq u16(0-1) target_sys(2) target_comp(3) type(4)
 static void handle_mission_request_int(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 2) return;  // reads p[0..1]
     uint16_t seq = get_u16(p + 0);
     uint8_t mtype = (plen > 4) ? p[4] : 0;
     if (seq < s_mission_count) {
@@ -617,6 +624,7 @@ static void handle_mission_request_int(UdpRelay& relay, const uint8_t* p, size_t
 
 // MISSION_CLEAR_ALL: (target_sys, target_comp, type u8).
 static void handle_mission_clear(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 3) return;  // reads p[2]
     uint8_t mtype = (plen > 2) ? p[2] : 0;
     s_mission_count = 0;
     send_mission_ack(relay, mtype, 0);
@@ -639,7 +647,8 @@ static void handle_log_request_list(UdpRelay& relay) {
 // LOG_REQUEST_DATA: (id u16, ofs u32, count u32). Stream LOG_DATA chunks of
 // 90 bytes each covering [ofs, ofs+count). Galapagos requests a window at a
 // time; respond until the window is served.
-static void handle_log_request_data(UdpRelay& relay, const uint8_t* p) {
+static void handle_log_request_data(UdpRelay& relay, const uint8_t* p, size_t plen) {
+    if (plen < 10) return;  // reads p[0..9]
     uint16_t id = get_u16(p);
     uint32_t ofs = get_u32(p + 2);
     uint32_t count = get_u32(p + 6);
@@ -732,17 +741,17 @@ void demo_task(void*) {
                      (unsigned long)msgid, (unsigned)n);
             switch (msgid) {
                 case 21: handle_param_request_list(relay); break;
-                case 20: handle_param_request_read(relay, payload); break;
-                case 23: handle_param_set(relay, payload); break;
+                case 20: handle_param_request_read(relay, payload, plen); break;
+                case 23: handle_param_set(relay, payload, plen); break;
                 case 44: handle_mission_count(relay, payload, plen); break;
                 case 73: handle_mission_item(relay, payload, plen); break;
                 case 43: handle_mission_request_list(relay, payload, plen); break;
                 case 51: handle_mission_request_int(relay, payload, plen); break;
                 case 45: handle_mission_clear(relay, payload, plen); break;
                 case 117: handle_log_request_list(relay); break;
-                case 119: handle_log_request_data(relay, payload); break;
+                case 119: handle_log_request_data(relay, payload, plen); break;
                 case 122: handle_log_request_end(relay); break;
-                case 76: handle_command_long(relay, payload); break;
+                case 76: handle_command_long(relay, payload, plen); break;
                 default: break;
             }
         }
