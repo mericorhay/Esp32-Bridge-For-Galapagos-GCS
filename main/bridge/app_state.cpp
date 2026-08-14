@@ -23,6 +23,7 @@ SpScRing<kTxRingCapacity> g_tx_ring;
 UdpRelay g_relay;
 StateMachine g_sm;
 std::atomic<int64_t> g_last_uart_rx_us{0};
+std::atomic<uint32_t> g_peer_ip{0};
 
 // Task handles for cross-task notifications.
 static TaskHandle_t s_udp_tx_task;
@@ -90,13 +91,15 @@ void udp_tx_task(void*) {
         for (;;) {
             auto span = g_rx_ring.pop_front();
             if (span.empty()) break;
-            if (!g_relay.send_broadcast(span)) {
-                // Send failed (e.g. lwIP momentarily out of pbufs). The
-                // bytes are still "consumed" — replaying them is worse
-                // than dropping, since MAVLink ordering matters more than
-                // completeness for a live feed.
-                g_rx_ring.consume(span.size());
-                continue;
+            // Broadcast always (the zero-config path), and unicast to the
+            // learned GCS when we know one. iOS/iPadOS is unreliable about
+            // receiving 255.255.255.255 broadcasts, so the unicast copy is
+            // what actually makes the phone connect — the broadcast remains
+            // for anything else that may be listening.
+            g_relay.send_broadcast(span);
+            uint32_t peer = g_peer_ip.load(std::memory_order_acquire);
+            if (peer != 0) {
+                g_relay.send_unicast_to(peer, kUdpPort, span);
             }
             g_rx_ring.consume(span.size());
             g_sm.dispatch(Event::RadioData);
@@ -110,6 +113,13 @@ void udp_rx_task(void*) {
         uint32_t peer = 0;
         size_t n = g_relay.recv(std::span<uint8_t>(buf, sizeof buf), 50, &peer);
         if (n == 0) continue;
+        // Any inbound datagram tells us where the GCS lives — refresh the
+        // unicast peer even if we already learned it from DHCP. This is the
+        // key to iOS: Galapagos replies to the bridge's source port, so the
+        // phone's address is learned the moment it talks to us.
+        if (peer != 0) {
+            g_peer_ip.store(peer, std::memory_order_release);
+        }
         // Same overflow guard the radio→app path uses: if the TX ring is
         // full (radio slow, GCS bursting commands), keep what fits and drop
         // the rest rather than blocking the UDP socket. `dropped()` on the

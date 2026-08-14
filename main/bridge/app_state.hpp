@@ -32,6 +32,13 @@ extern SpScRing<kTxRingCapacity> g_tx_ring;
 extern UdpRelay g_relay;
 extern StateMachine g_sm;
 
+// IPv4 of the connected GCS, learned from WIFI_EVENT_AP_STAIPASSIGNED and
+// refreshed from any inbound datagram's source. 0 = unknown. When known,
+// telemetry is unicast to it IN ADDITION to the broadcast — iOS in
+// particular is unreliable about receiving 255.255.255.255 broadcasts, so
+// unicast is the path that actually works on iPhone/iPad.
+extern std::atomic<uint32_t> g_peer_ip;
+
 // Microsecond timestamp (esp_timer) of the last byte arrival on the radio
 // UART, written by uart_rx_task and read by link_watch_task. This is the
 // *arrival* signal, not "is the ring currently non-empty" — the consumer

@@ -8,6 +8,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "bridge/app_state.hpp"
+
 static const char* TAG = "demo";
 
 namespace bridge {
@@ -91,6 +93,9 @@ static std::atomic<uint32_t> s_peer_ip{0};
 
 void demo_set_peer(uint32_t ipv4) {
     s_peer_ip.store(ipv4, std::memory_order_release);
+    // Production relay uses the same peer for unicast telemetry — learn it
+    // from the same WiFi/DHCP event so both paths address the phone.
+    g_peer_ip.store(ipv4, std::memory_order_release);
     ESP_LOGI(TAG, "GCS peer IP: %u.%u.%u.%u",
              (ipv4 >> 24) & 0xFF, (ipv4 >> 16) & 0xFF,
              (ipv4 >> 8) & 0xFF, ipv4 & 0xFF);
