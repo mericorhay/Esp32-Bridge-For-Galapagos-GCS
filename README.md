@@ -1,4 +1,31 @@
-# Galapagos Bridge
+# Galapagos Bridge (Retired)
+
+**This firmware is retired as of August 2026.** Galapagos GCS now recommends
+[DroneBridge for ESP32](https://github.com/DroneBridge/ESP32) (Apache-2.0)
+instead of this project.
+
+Why: DroneBridge is a mature, actively maintained bridge (stable v2.2.1 at
+time of writing) that does everything this firmware did — and more (TCP
+fallback, Bluetooth LE, ESP-NOW swarm broadcast, MSP/LTM passthrough) — with
+a larger community behind it. Galapagos GCS's MAVLink layer already speaks
+plain `udp://` / `udpout://` / `tcp://`, so it needed no protocol changes to
+work with DroneBridge — just different setup defaults.
+
+**If you're setting up a bridge today, use DroneBridge instead:**
+
+* Flash it from your browser: <https://drone-bridge.com/flasher/>
+* Docs: <https://dronebridge.gitbook.io/docs/dronebridge-for-esp32/quick-start>
+* In Galapagos GCS: join Wi-Fi `DroneBridge for ESP32` (password
+  `dronebridge`), pick "Wi-Fi" mode, and connect to `192.168.2.1 : 14550`.
+  (Use the bridge's IP, not `0.0.0.0` — DroneBridge waits for the GCS to
+  send the first packet before it starts relaying telemetry back.)
+
+The code below is kept for reference / archival purposes only and receives
+no further updates.
+
+---
+
+# Galapagos Bridge (archived — see notice above)
 
 Turn an ESP32 into a wireless MAVLink bridge for Galapagos GCS.
 
